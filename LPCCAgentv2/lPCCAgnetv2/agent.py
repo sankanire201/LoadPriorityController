@@ -8,7 +8,8 @@ import logging
 import sys
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent, Core, RPC
-
+sys.path.insert(0,'/home/pi/volttron/loadPriorityController/LPCCAgentv2/lPCCAgnetv2/LPC')
+from diagonstic import DiagnosticsSource
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 __version__ = "0.1"
