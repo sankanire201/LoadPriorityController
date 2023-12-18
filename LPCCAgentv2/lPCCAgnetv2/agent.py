@@ -8,8 +8,11 @@ import logging
 import sys
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent, Core, RPC
-sys.path.insert(0,'/home/pi/volttron/loadPriorityController/LPCCAgentv2/lPCCAgnetv2/LPC')
+sys.path.insert(0,'/home/pi/volttron/loadPriorityController/LPCCAgentv2/lPCCAgnetv2/lpc')
 from diagonstic import DiagnosticsSource
+from devices import WeMoPlugDevice
+from LPC import LPCWeMo
+from service import WeMoService
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 __version__ = "0.1"
@@ -39,20 +42,28 @@ def lPCCAgnetv2(config_path, **kwargs):
     return Lpccagnetv2(setting1, setting2, **kwargs)
 
 
-class Lpccagnetv2(Agent):
+class Lpccagnetv2(Agent,LPCWeMo,DiagnosticsSource,WeMoPlugDevice,WeMoService):
     """
     Document agent constructor here.
     """
 
-    def __init__(self, setting1=1, setting2="some/random/topic", **kwargs):
+    def __init__(self, setting1=1, setting2="some/random/topic", setting7={"CSV_path":"/home/pi/volttron/LPCCCAgent/Building_Config.csv"}, **kwargs):
         super(Lpccagnetv2, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
 
         self.setting1 = setting1
         self.setting2 = setting2
+        self.setting7 = setting7
 
         self.default_config = {"setting1": setting1,
-                               "setting2": setting2}
+                               "setting2": setting2,
+                               "setting7": setting7}
+
+        #self.Wemodevices=WeMoPlugDevice()
+        self.WeMoplugservice=WeMoService()
+        self.WeMoLPCmodule=LPCWeMo()
+        self.devices=WeMoPlugDevice()
+        self.WeMoplugservice.register_devices(self.setting7["CSV_path"],self.WeMoLPCmodule)
 
         # Set a default configuration to ensure that self.configure is called immediately to setup
         # the agent.
@@ -75,14 +86,20 @@ class Lpccagnetv2(Agent):
         try:
             setting1 = int(config["setting1"])
             setting2 = str(config["setting2"])
+            setting7 = config["setting7"]
         except ValueError as e:
             _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
             return
 
         self.setting1 = setting1
         self.setting2 = setting2
+        self.setting7 = setting7
 
-        self._create_subscriptions(self.setting2)
+
+        for x in self.setting2:
+            self._create_subscriptions(str(x))
+            
+        self.vip.pubsub.subscribe(peer='pubsub',prefix='Wemo_Schedule',callback=self._handle_publish)
 
     def _create_subscriptions(self, topic):
         """
@@ -99,7 +116,11 @@ class Lpccagnetv2(Agent):
         """
         Callback triggered by the subscription setup using the topic from the agent's config file
         """
-        pass
+        #self.Wemodevices.connect()
+        self.WeMoplugservice.device_status_update(topic,message,self.WeMoLPCmodule)
+        self.WeMoplugservice.device_set_control_mode(topic,message,self.WeMoLPCmodule)
+
+        print("Handle publish")
 
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
