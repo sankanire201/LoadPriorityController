@@ -1,4 +1,6 @@
 from typing import Protocol
+from messages import MessageType
+from messages  import Message
 from diagonstic import DiagnosticsSource
 from devices import WeMoPlugDevice
 from csv import DictReader, DictWriter
@@ -10,12 +12,15 @@ import operator
 import numpy as np
 class LPCmodule(Protocol):
 
-    def set_lpc_control_mode(self,topic:str,message:dict)->None:
+    def set_lpc_control_mode(self,topic:str,message:dict)->Message:
         ...
     def read_device_configurations(self,csv_path):
         ...
     def read_device_status(self,topic,message):
         ...
+    def set_priority(self,priority):
+        ...
+
 class LPCWeMo(LPCmodule):
     def __init__(self):
         self.__WeMo_Actual_Status={}
@@ -60,7 +65,16 @@ class LPCWeMo(LPCmodule):
                 self.__controller_mode='Increment'
                 #self.lpc_increment(message)
                 self.__controller_mode_active='Inactive'
-
+            result=topic.find('setpriority')
+            if result >=0:
+                self.__control_command=int(message)
+                self.__controller_mode_active='Active'
+                self.__controller_mode='setpriority'
+                self.lpc_increment(message)
+                self.__controller_mode_active='Inactive'
+        data=self.set_priority(self.__WeMo_Priority_increment)
+        return Message('WeMo',MessageType.WRITE,data)
+        
     def read_device_configurations(self,csv_path):
        if os.path.isfile(csv_path):
               with open(csv_path, "r") as csv_device:
@@ -113,3 +127,12 @@ class LPCWeMo(LPCmodule):
                 if self.__loads_max_consumption[load_tag[0]]< self.__loads_consumption[load_tag[0]]:
                     self.__loads_max_consumption[load_tag[0]]=self.__loads_consumption[load_tag[0]]
                 self.__total_consumption=sum(self.__loads_consumption.values())
+    def set_priority(self,priority={})->dict:
+        topic=[]
+        message=[]
+        for i in priority:
+           # print("setting priority to cluster controller for ",i,priority[i],i.split("devices/")[1])
+            topic.append( i.split("devices/")[1])
+            message.append(priority[i])
+           # result=self.vip.rpc.call('platform.driver','set_point', i.split("devices/")[1],'priority',priority[i]).get(timeout=20)
+        return {'topic':topic,'message':message}

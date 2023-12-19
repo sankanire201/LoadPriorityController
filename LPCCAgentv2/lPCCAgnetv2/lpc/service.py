@@ -1,5 +1,6 @@
 from typing import Protocol
 from messages import MessageType
+from messages  import Message
 from csv import DictReader, DictWriter
 import os
 import csv
@@ -14,7 +15,7 @@ class Device(Protocol):
     def disconnect(self) -> None:
         ...
 
-    def send_message(self, message_type: MessageType, data: str) -> None:
+    def send_message(self, message: Message) -> None:
         ...
     def status_update(self) -> str:
         ...
@@ -31,9 +32,10 @@ class WeMoService:
     def device_status_update(self,topic,message,lpc:LPCmodule):
         lpc.read_device_status(topic,message)
         print("reading devices")
-    def device_set_control_mode(self,topic,message,lpc:LPCmodule):
-        lpc.set_lpc_control_mode(topic,message)
-        print("setting the conrol mode")
+    def device_set_control_mode(self,topic,message,lpc:LPCmodule,devices:Device):
+        devicemessage=lpc.set_lpc_control_mode(topic,message)
+        devices.send_message(devicemessage)
+        #print("setting the conrol mode",devicemessage)
 
 
  

@@ -6,5 +6,5 @@
   "setting4": false,
   "setting5": 5.1, # Floating point numbers.
   "setting6": [1,2,3,4], #Lists
-  "setting7": {"setting7a": "a", "setting7b": "b"} # Objects
+  "setting7": {"CSV_path":"/home/pi/volttron/loadPriorityController/LPCCAgentv2/Building_Config.csv"} # Objects
 }

@@ -47,7 +47,7 @@ class Lpccagnetv2(Agent,LPCWeMo,DiagnosticsSource,WeMoPlugDevice,WeMoService):
     Document agent constructor here.
     """
 
-    def __init__(self, setting1=1, setting2="some/random/topic", setting7={"CSV_path":"/home/pi/volttron/LPCCCAgent/Building_Config.csv"}, **kwargs):
+    def __init__(self, setting1=1, setting2="some/random/topic", setting7={"CSV_path":"/home/pi/volttron/loadPriorityController/LPCCAgentv2/Building_Config.csv"}, **kwargs):
         super(Lpccagnetv2, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
 
@@ -62,7 +62,7 @@ class Lpccagnetv2(Agent,LPCWeMo,DiagnosticsSource,WeMoPlugDevice,WeMoService):
         #self.Wemodevices=WeMoPlugDevice()
         self.WeMoplugservice=WeMoService()
         self.WeMoLPCmodule=LPCWeMo()
-        self.devices=WeMoPlugDevice()
+        self.WeModevices=WeMoPlugDevice(self.vip)
         self.WeMoplugservice.register_devices(self.setting7["CSV_path"],self.WeMoLPCmodule)
 
         # Set a default configuration to ensure that self.configure is called immediately to setup
@@ -95,7 +95,6 @@ class Lpccagnetv2(Agent,LPCWeMo,DiagnosticsSource,WeMoPlugDevice,WeMoService):
         self.setting2 = setting2
         self.setting7 = setting7
 
-
         for x in self.setting2:
             self._create_subscriptions(str(x))
             
@@ -118,7 +117,7 @@ class Lpccagnetv2(Agent,LPCWeMo,DiagnosticsSource,WeMoPlugDevice,WeMoService):
         """
         #self.Wemodevices.connect()
         self.WeMoplugservice.device_status_update(topic,message,self.WeMoLPCmodule)
-        self.WeMoplugservice.device_set_control_mode(topic,message,self.WeMoLPCmodule)
+        self.WeMoplugservice.device_set_control_mode(topic,message,self.WeMoLPCmodule,self.WeModevices)
 
         print("Handle publish")
 
