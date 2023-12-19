@@ -61,10 +61,10 @@ class Lpccagnetv2(Agent,LPCWeMo,DiagnosticsSource,WeMoPlugDevice,WeMoService):
 
         #self.Wemodevices=WeMoPlugDevice()
         self.WeMoplugservice=WeMoService()
-        self.WeMoLPCmodule=LPCWeMo()
+        self.WeMoLPCmodule=LPCWeMo(self.vip)
         self.WeModevices=WeMoPlugDevice(self.vip)
         self.WeMoplugservice.register_devices(self.setting7["CSV_path"],self.WeMoLPCmodule)
-
+        self.core.periodic(2,self.dowork)
         # Set a default configuration to ensure that self.configure is called immediately to setup
         # the agent.
         self.vip.config.set_default("config", self.default_config)
@@ -155,6 +155,8 @@ class Lpccagnetv2(Agent,LPCWeMo,DiagnosticsSource,WeMoPlugDevice,WeMoService):
         """
         return self.setting1 + arg1 - arg2
 
+    def dowork(self):
+        print('Total WeMo Consumpiton: ',self.WeMoLPCmodule.get_total_device_consumption())
 
 def main():
     """Main method called to start the agent."""

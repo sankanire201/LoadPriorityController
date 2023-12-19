@@ -40,7 +40,7 @@ class WeMoPlugDevice:
             data (str): _description_
         """
         for i in range(len(message.data['message'])):
-            result=self.vip.rpc.call('platform.driver','set_point', message.data['topic'][i],'priority',message.data['message'][i]).get(timeout=20)
+            result=self.vip.rpc.call('platform.driver','set_point', message.data['topic'][i],message.control,message.data['message'][i]).get(timeout=20)
             print(
             f"Hue light handling message of type {message.data['topic'][i]} with data [{message.data['message'][i]}]."
             )

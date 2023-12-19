@@ -20,9 +20,16 @@ class LPCmodule(Protocol):
         ...
     def set_priority(self,priority):
         ...
+    def lpc_shedding(self,message)->Message:
+        ...
+    def lpc_increment(self,message)->Message:
+        ...
+    def get_total_device_consumption():  
+        ...
 
 class LPCWeMo(LPCmodule):
-    def __init__(self):
+    def __init__(self,VIP):
+        self.vip=VIP
         self.__WeMo_Actual_Status={}
         self.__WeMo_Priorities=defaultdict(list)
         self.__WeMo_Power_Consumption_Sql={}
@@ -41,39 +48,41 @@ class LPCWeMo(LPCmodule):
         self.__controller_mode_active='Inactive'
         self.__building_Controller=""
 
-    def set_lpc_control_mode(self,topic,message):
-        result = str(topic).find('control')
-        if result >=0:
-            result=topic.find('shedding')
-            if result >=0:
+    def set_lpc_control_mode(self,topic,message)->Message:
+
+        if str(topic).find('control') >=0:
+            if topic.find('shedding') >=0:
                 self.__control_command=int(message)
                 self.__controller_mode_active='Active'
                 self.__controller_mode='Shedding'
-               # self.lpc_shedding(message)
+                devicemessage=self.lpc_shedding(message)
                 self.__controller_mode_active='Inactive'
-            result=topic.find('directcontrol')
-            if result >=0:
+            elif topic.find('directcontrol') >=0:
                 self.__control_command=int(message[1])
                 self.__controller_mode_active='Active'
                 self.__controller_mode='Direct'
-                #self.lpc_directcontrol(message)
+                devicemessage=self.lpc_directcontrol(message)
                 self.__controller_mode_active='Inactive'
-            result=topic.find('increment')
-            if result >=0:
+            elif topic.find('increment') >=0:
                 self.__control_command=int(message)
                 self.__controller_mode_active='Active'
                 self.__controller_mode='Increment'
-                #self.lpc_increment(message)
+                devicemessage=self.lpc_increment(message)
                 self.__controller_mode_active='Inactive'
-            result=topic.find('setpriority')
-            if result >=0:
+            
+            elif topic.find('setpriority') >=0:
                 self.__control_command=int(message)
                 self.__controller_mode_active='Active'
                 self.__controller_mode='setpriority'
-                self.lpc_increment(message)
+                devicemessage=self.lpc_increment(message)
                 self.__controller_mode_active='Inactive'
-        data=self.set_priority(self.__WeMo_Priority_increment)
-        return Message('WeMo',MessageType.WRITE,data)
+            else:
+                devicemessage=Message('WeMo',MessageType.WRITE,None,{})
+        else:
+            devicemessage=Message('WeMo',MessageType.WRITE,None,{})
+
+        
+        return devicemessage
         
     def read_device_configurations(self,csv_path):
        if os.path.isfile(csv_path):
@@ -117,10 +126,10 @@ class LPCWeMo(LPCmodule):
             result = topic.find('control')
             if result >=0:
                     pass
-            else:
+            elif topic.find('devices/building540/NIRE_WeMo_cc_1')>=0:
                 load_tag=topic.split("/all")
        #     index=load_tag[-2]+"_"+load_tag[-3][-1]
-                self.__loads_consumption[load_tag[0]]=int((message[0])['power'])/1000
+                self.__loads_consumption[load_tag[0]]=int((message[0])['power']/1000)
                 print(self.__loads_consumption[load_tag[0]],'hah')
                 self.__WeMo_Actual_Status[load_tag[0]]=int((message[0])['status'])
                 self.__WeMo_Priority_increment[load_tag[0]]=int((message[0])['priority'])
@@ -136,3 +145,93 @@ class LPCWeMo(LPCmodule):
             message.append(priority[i])
            # result=self.vip.rpc.call('platform.driver','set_point', i.split("devices/")[1],'priority',priority[i]).get(timeout=20)
         return {'topic':topic,'message':message}
+    
+    def lpc_shedding(self,message)->Message:
+        self.__check_shedding_condition()
+        self.__sort_WeMo_list()            
+        self.__WeMo_Scheduled_Status=self.__schedule_shedding_control_WeMo()
+        data=self.__send_WeMo_schedule()
+        return Message('WeMo',MessageType.WRITE,'status',data)
+    def lpc_increment(self,message)->Message:
+        self.__check_shedding_condition()
+        self.__sort_WeMo_list()
+        self.__WeMo_Scheduled_Status=self.__schedule_increment_control_WeMo()
+        data=self.__send_WeMo_schedule()
+        return Message('WeMo',MessageType.WRITE,'status',data)
+    def lpc_directcontrol(self,message):
+        if message[0]=='all':
+           topic=[]
+           tempmessage=[]
+           for i in self.__WeMo_Priority_increment:
+                 topic.append(i.split("devices/")[1])
+                 tempmessage.append(message[1])
+           return Message('WeMo',MessageType.WRITE,'status',{'topic':topic,'message':tempmessage})
+
+
+    def __check_shedding_condition(self):
+        total_consumption=self.__total_consumption
+        self.__Power_Consumption_Upper_limit=total_consumption-int(self.__control_command)
+        if self.__Power_Consumption_Upper_limit<0:
+                    self.__Power_Consumption_Upper_limit=0 
+        print("cheked",self.__Power_Consumption_Upper_limit)    
+
+    def __sort_WeMo_list(self):
+        sorted_x= sorted(self.__WeMo_Priorities.items(), key=operator.itemgetter(0),reverse=False) # Sort ascending order (The lowest priority is first)
+        self.__WeMo_Priorities = collections.OrderedDict(sorted_x)
+
+    def __schedule_shedding_control_WeMo(self):
+        Temp_WeMo_Schedule={}
+        Temp_WeMos=defaultdict(list)
+        for x in self.__WeMo_Actual_Status:
+              Temp_WeMos[int(self.__WeMo_Priority_increment[x])].append([x,int(self.__loads_consumption[x])])
+        consumption=self.__total_consumption
+        while bool(Temp_WeMos)==True:
+            print(Temp_WeMos[min(Temp_WeMos.keys())])
+            for y in Temp_WeMos[min(Temp_WeMos.keys())]:
+                consumption=consumption-y[1]
+                Temp_WeMo_Schedule[y[0]]=0
+                if consumption <= self.__Power_Consumption_Upper_limit:
+                    break;
+            if consumption <= self.__Power_Consumption_Upper_limit:
+                break;
+            del Temp_WeMos[min(Temp_WeMos.keys())]
+        return Temp_WeMo_Schedule
+    def __schedule_increment_control_WeMo(self):
+        print('********************Increment control initialized****************************')
+        Temp_WeMo_Schedule={}
+        Temp_Off_WeMos=defaultdict(list)
+        for x in self.__WeMo_Actual_Status:
+              if self.__WeMo_Actual_Status[x]==0:
+                  Temp_Off_WeMos[int(self.__WeMo_Priority_increment[x])].append([x,int(self.__loads_max_consumption[x])])
+              else:
+                  pass
+         #if bool(Temp_Off_WeMos[x])==True:
+        consumption=0
+        while bool(Temp_Off_WeMos)==True:
+            for y in Temp_Off_WeMos[max(Temp_Off_WeMos.keys())]:
+                consumption=y[1]+consumption
+
+                if consumption >= self.__control_command:
+                    break;
+                Temp_WeMo_Schedule[y[0]]=1
+            if consumption >= self.__control_command:
+                break;
+
+            del Temp_Off_WeMos[max(Temp_Off_WeMos.keys())]
+        print('consumption',consumption,self.__loads_max_consumption)
+        print('off_wemos',Temp_Off_WeMos)
+        return Temp_WeMo_Schedule
+
+
+    def __send_WeMo_schedule(self)->dict:
+        print("sending schedule............")
+        topic=[]
+        message=[]
+        for y in self.__WeMo_Scheduled_Status:            
+            topic.append(y.split("devices/")[1])
+            message.append(self.__WeMo_Scheduled_Status[y])
+        return {'topic':topic,'message':message}
+    def get_total_device_consumption(self):
+        self.vip.pubsub.publish('pubsub', self.__building_Controller+"/TotalWeMoConsumption", message=self.__total_consumption)
+        return self.__total_consumption
+                

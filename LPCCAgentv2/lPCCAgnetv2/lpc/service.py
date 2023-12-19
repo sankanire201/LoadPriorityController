@@ -21,9 +21,19 @@ class Device(Protocol):
         ...
 class LPCmodule(Protocol):
 
-    def set_lpc_control_mode(self,topic:str,message:dict)->None:
+    def set_lpc_control_mode(self,topic:str,message:dict)->Message:
         ...
     def read_device_configurations(self,csv_path):
+        ...
+    def read_device_status(self,topic,message):
+        ...
+    def set_priority(self,priority):
+        ...
+    def lpc_shedding(self,message)->Message:
+        ...
+    def lpc_increment(self,message)->Message:
+        ...
+    def get_total_device_consumption():  
         ...
 class WeMoService:
     def register_devices(self,csv_path:str,lpc:LPCmodule):
@@ -34,8 +44,11 @@ class WeMoService:
         print("reading devices")
     def device_set_control_mode(self,topic,message,lpc:LPCmodule,devices:Device):
         devicemessage=lpc.set_lpc_control_mode(topic,message)
-        devices.send_message(devicemessage)
-        #print("setting the conrol mode",devicemessage)
+        print("set control", devicemessage)
+        if devicemessage.control == None:
+            pass
+        else:
+            devices.send_message(devicemessage)
 
 
  

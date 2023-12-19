@@ -13,4 +13,5 @@ class MessageType(Enum):
 class Message:
     device_id: str
     msg_type: MessageType
+    control:str
     data: dict
