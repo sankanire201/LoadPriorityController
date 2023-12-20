@@ -109,7 +109,7 @@ class Lpccagnetv2(Agent,LPCWeMo,DiagnosticsSource,WeMoPlugDevice,WeMoService):
 
         self.vip.pubsub.subscribe(peer='pubsub',
                                   prefix=topic,
-                                  callback=self._handle_publish)
+                                  callback=self._handle_publish,all_platforms=True)
 
     def _handle_publish(self, peer, sender, bus, topic, headers, message):
         """

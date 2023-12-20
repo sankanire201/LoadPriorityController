@@ -49,8 +49,9 @@ class LPCWeMo(LPCmodule):
         self.__building_Controller=""
 
     def set_lpc_control_mode(self,topic,message)->Message:
-
+       
         if str(topic).find('control') >=0:
+            print("Control mode ##############################",topic,message)
             if topic.find('shedding') >=0:
                 self.__control_command=int(message)
                 self.__controller_mode_active='Active'
@@ -58,6 +59,7 @@ class LPCWeMo(LPCmodule):
                 devicemessage=self.lpc_shedding(message)
                 self.__controller_mode_active='Inactive'
             elif topic.find('directcontrol') >=0:
+                print("Direct control ##############")
                 self.__control_command=int(message[1])
                 self.__controller_mode_active='Active'
                 self.__controller_mode='Direct'
@@ -163,6 +165,7 @@ class LPCWeMo(LPCmodule):
            topic=[]
            tempmessage=[]
            for i in self.__WeMo_Priority_increment:
+                 print("Direct control ##############")
                  topic.append(i.split("devices/")[1])
                  tempmessage.append(message[1])
            return Message('WeMo',MessageType.WRITE,'status',{'topic':topic,'message':tempmessage})
